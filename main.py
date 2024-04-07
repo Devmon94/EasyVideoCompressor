@@ -19,6 +19,8 @@ outputPath = r"C:\Users\mamec\Documents\VS projects\VideoCompresor"
 #Variables
 selectedInputPath = " "
 selectedOutputPath = " "
+selectedTNOutputPath = " "
+duracion_formateada = " "
 
 # dark | system | light
 customtkinter.set_appearance_mode("dark")
@@ -30,6 +32,19 @@ customtkinter.set_default_color_theme("dark-blue")
 def start_main():
     t = Thread(target=compress, daemon=True)
     t.start()
+
+def start_main_TN():
+    t = Thread(target=generateTN, daemon=True)
+    t.start()
+
+def generateTN():
+    global selectedInputPath
+    global selectedTNOutputPath
+    
+    #subprocess.call(['ffmpeg', '-i', selectedInputPath, '-ss', '00:00:00.000', '-vframes', '1', selectedTNOutputPath])
+    subprocess.call(['ffmpeg', '-i', selectedInputPath, '-ss', duracion_formateada, '-vframes', '1', selectedTNOutputPath])
+    print("TRAZAAAA " + selectedTNOutputPath)
+    display.configure(dark_image = Image.open(selectedTNOutputPath), light_image = Image.open(selectedTNOutputPath), size=(480,270))
 
 def compress():
     global selectedInputPath
@@ -74,8 +89,24 @@ def calculatePercentage(totalFrames, currentFrame):
     return percentage
 
 def browseInput():
+    global duracion_formateada
     global selectedInputPath
+
     selectedInputPath = askopenfilename(initialdir = inputPath, filetypes = (("MP4 Files", "*.mp4"),("All Files", "*.*")))
+
+    cmd = ['ffprobe', '-i', selectedInputPath, '-show_entries', 'format=duration', '-v', 'quiet', '-of', 'csv=p=0']
+
+    process = subprocess.Popen(cmd,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT,
+                            universal_newlines=True)
+
+    duracion_str = process.stdout.readline()
+    duracion_segundos = float(duracion_str)
+
+    duracion_formateada = str(int(duracion_segundos // 3600)).zfill(2) + ':' + \
+                            str(int((duracion_segundos % 3600) // 60)).zfill(2) + ':' + \
+                            str(int(duracion_segundos % 60)).zfill(2)
 
     if(selectedInputPath != ""):
         entry_input.configure(placeholder_text = selectedInputPath)
@@ -87,12 +118,18 @@ def browseOutput():
     if(selectedOutputPath != ""):
         entry_output.configure(placeholder_text = selectedOutputPath)
 
-def getFrame():
-    subprocess.call(['ffmpeg', '-i', video_input_path, '-ss', '00:00:00.000', '-vframes', '1', img_output_path])
+def browseOutputTN():
+    global selectedTNOutputPath
+    selectedTNOutputPath = asksaveasfilename(initialdir = outputPath, filetypes = (("PNG Files", "*.png"),("All Files", "*.*")))
+
+    if(selectedOutputPath != ""):
+        TN_output.configure(placeholder_text = selectedTNOutputPath)
+    
+    
 
 app = customtkinter.CTk()
 app.title("Video Compresor")
-app.geometry("680x700")
+app.geometry("750x800")
 
 # Menu and sub menu
 menu = tk.Menu(app)
@@ -160,8 +197,23 @@ display = customtkinter.CTkImage(dark_image = Image.open('preview.png'),
 lb_tn_text = customtkinter.CTkLabel(master=frameThumbnail, text="THUMBNAIL PREVIEW", font=("Roboto", 14, "bold"), text_color="#2596be")
 lb_tn_text.grid(column=0, row=0, pady=10, padx=4) 
 
+# Slider
+slider = customtkinter.CTkSlider(master=frameThumbnail, from_=0, to=100, width=400)
+slider.grid(column=0, row=1, pady=10, padx=4) 
+slider.set(0)
+
 lb_preview = customtkinter.CTkLabel(master=frameThumbnail, text="", image=display)
-lb_preview.grid(column=0, row=1, pady=15, padx=40)
+lb_preview.grid(column=0, row=2, pady=15, padx=40)
+
+# -- Generate
+TN_output = customtkinter.CTkEntry(master=frameThumbnail, placeholder_text="Output Path", width=400)
+TN_output.grid(column=0, row=3, pady=4, padx=4) 
+
+bt_Output = customtkinter.CTkButton(master=frameThumbnail, text="Browse", command=browseOutputTN)
+bt_Output.grid(column=1, row=3, pady=4, padx=4)
+
+buttonGenerateTN = customtkinter.CTkButton(master=frameThumbnail, text="Generate", command=start_main_TN)
+buttonGenerateTN.grid(column=1, row=4, pady=4, padx=4) 
 
 app.mainloop()
 
