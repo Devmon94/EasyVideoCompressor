@@ -4,10 +4,9 @@
 
 import ffmpeg
 import tkinter as tk
-from tkinter import ttk
 from tkinter.filedialog import askopenfilename, asksaveasfilename
 from threading import Thread
-from PIL import Image, ImageTk
+from PIL import Image
 import customtkinter
 import subprocess
 
@@ -37,14 +36,35 @@ def start_main_TN():
     t = Thread(target=generateTN, daemon=True)
     t.start()
 
+def sliderListener():
+    print("Slider moved " + slider._command)
+
 def generateTN():
     global selectedInputPath
     global selectedTNOutputPath
     
     #subprocess.call(['ffmpeg', '-i', selectedInputPath, '-ss', '00:00:00.000', '-vframes', '1', selectedTNOutputPath])
-    subprocess.call(['ffmpeg', '-i', selectedInputPath, '-ss', duracion_formateada, '-vframes', '1', selectedTNOutputPath])
+    #subprocess.call(['ffmpeg', '-i', selectedInputPath, '-ss', duracion_formateada, '-vframes', '1', selectedTNOutputPath])
+    subprocess.call(['ffmpeg', '-i', selectedInputPath, '-vf', f"select=gte(n\\,{totalVideoFrames})", '-vframes', '1', selectedTNOutputPath])
     print("TRAZAAAA " + selectedTNOutputPath)
     display.configure(dark_image = Image.open(selectedTNOutputPath), light_image = Image.open(selectedTNOutputPath), size=(480,270))
+    slider.to(int(totalVideoFrames))
+    
+def getAllFrames():
+    for frame in range (int(totalVideoFrames(selectedInputPath))):
+        if frame % 90 == 0:
+            subprocess.call(['ffmpeg', '-y', '-i', selectedInputPath, '-vf', f"select=gte(n\\,{frame})", '-vframes', '1', f'tempFrames\{frame}.png'])
+
+def setFirstFrame():
+    subprocess.call(['ffmpeg', '-y', '-i', selectedInputPath, '-vf', f"select=gte(n\\,{0})", '-vframes', '1', r'temp\first.png'])
+
+    previewFrame = Image.open(r'temp\first.png')
+
+    display.configure(light_image = previewFrame, 
+                      dark_image = previewFrame,
+                      size=(320,180))
+    
+    slider.configure(to=(int(totalVideoFrames(selectedInputPath))))
 
 def compress():
     global selectedInputPath
@@ -107,6 +127,9 @@ def browseInput():
     duracion_formateada = str(int(duracion_segundos // 3600)).zfill(2) + ':' + \
                             str(int((duracion_segundos % 3600) // 60)).zfill(2) + ':' + \
                             str(int(duracion_segundos % 60)).zfill(2)
+
+    setFirstFrame()
+    getAllFrames()
 
     if(selectedInputPath != ""):
         entry_input.configure(placeholder_text = selectedInputPath)
@@ -188,10 +211,11 @@ lb_percentage.grid(column=0, row=3, pady=4, padx=4)
 frameThumbnail = customtkinter.CTkFrame(master=app)
 frameThumbnail.grid(pady=20, padx=60)
 
+firstPreviewImage = Image.open(r'resources\noVideo2.png')
 
-display = customtkinter.CTkImage(dark_image = Image.open('preview.png'),
-                                 light_image=Image.open('preview.png'),
-                                 size=(400,250))
+display = customtkinter.CTkImage(dark_image = firstPreviewImage, 
+                                 light_image = firstPreviewImage,
+                                 size=(320,180))
                                  
 
 lb_tn_text = customtkinter.CTkLabel(master=frameThumbnail, text="THUMBNAIL PREVIEW", font=("Roboto", 14, "bold"), text_color="#2596be")
